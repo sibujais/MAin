@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Don't Loose your Chance!</title>
+  <title>Vocabulary Explorer ✨</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%234a4e69'/%3E%3Ctext x='50%' y='54%' text-anchor='middle' font-size='36' fill='white' font-family='Segoe UI, sans-serif'%3E📚%3C/text%3E%3C/svg%3E">
+
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(145deg, #f0f8ff, #e6e6fa);
+      margin: 0;
+      padding: 2rem;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #4a4e69;
+      margin-bottom: 1rem;
+      font-size: 2.5rem;
+    }
+
+    .table-container {
+      background: #fff;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 1rem;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background: #f7f7fb;
+      color: #4a4e69;
+    }
+
+    tr:hover {
+      background-color: #f9f9ff;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+
+    .pagination button {
+      background-color: #4a4e69;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      margin: 0 5px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: 0.3s;
+    }
+
+    .pagination button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    .pagination button:hover:not(:disabled) {
+      background-color: #6c5ce7;
+    }
+
+    .checkbox-cell {
+      text-align: center;
+    }
+
+    .drag-handle {
+      cursor: grab;
+      color: #888;
+      font-size: 1.2rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<h1>📚 Vocabulary Explorer</h1>
+
+<div class="table-container">
+  <table id="vocabTable">
+    <thead>
+      <tr>
+        <th>🔀</th>
+        <th>#</th>
+        <th>Word</th>
+        <th>Hindi Meaning</th>
+        <th>English Meaning</th>
+        <th>Example</th>
+        <th>🧠 Forget?</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<div class="pagination">
+  <button id="prevBtn">⏮ Prev</button>
+  <button id="nextBtn">Next ⏭</button>
+</div>
+
+<script>
+  const data = [
+    { word: "Apparatus", hindi: "उपकरण", meaning: "A set of tools", example: "The lab has modern apparatus." },
+    { word: "Ethics", hindi: "नैतिकता", meaning: "Moral principles", example: "Ethics guide our actions." },
+    { word: "Egress", hindi: "निकास", meaning: "Exit or way out", example: "Use the rear door for egress." },
+    { word: "Progeny", hindi: "संतान", meaning: "Descendants or offspring", example: "He cared for his progeny." },
+    { word: "Tarnish", hindi: "धूमिल करना", meaning: "Spoil reputation", example: "Scandal tarnished his image." },
+    { word: "Frailty", hindi: "कमजोरी", meaning: "Physical or moral weakness", example: "Old age brings frailty." },
+    { word: "Abscond", hindi: "फरार होना", meaning: "Escape secretly", example: "The thief absconded at night." },
+    { word: "Subjugate", hindi: "अधीन करना", meaning: "Bring under control", example: "The army subjugated the rebels." },
+    { word: "Vivacity", hindi: "जीवंतता", meaning: "Liveliness and energy", example: "She danced with vivacity." },
+    { word: "Ostracize", hindi: "बहिष्कार", meaning: "Exclude socially", example: "He was ostracized by peers." },
+    { word: "Cognitive", hindi: "संज्ञानात्मक", meaning: "Related to thinking", example: "Cognitive skills matter in exams." },
+    { word: "Debility", hindi: "कमजोरी", meaning: "Weakness", example: "He was ill with debility." },
+    { word: "Impair", hindi: "नुकसान पहुंचाना", meaning: "Weaken or harm", example: "Loud noise impairs hearing." },
+    { word: "Flexibility", hindi: "लचीलापन", meaning: "Ability to bend or adapt", example: "Yoga improves flexibility." },
+    { word: "Resilience", hindi: "लचीलापन", meaning: "Bounce back from hardship", example: "She showed great resilience." },
+    { word: "Nullify", hindi: "अमान्य करना", meaning: "Cancel legally", example: "The contract was nullified." },
+    { word: "Fictional", hindi: "काल्पनिक", meaning: "Not real", example: "Superman is a fictional hero." },
+    { word: "Recede", hindi: "कम होना", meaning: "Go or move back", example: "The floodwaters receded." },
+    { word: "Surpass", hindi: "अधिक होना", meaning: "Go beyond", example: "She surpassed all records." },
+    { word: "Elated", hindi: "बहुत खुश", meaning: "Extremely happy", example: "He was elated after winning." },
+    
+  ];
+
+  let currentPage = 1;
+  const rowsPerPage = 20;
+  const forgetKey = 'forgottenWords';
+  const forgetSet = new Set(JSON.parse(localStorage.getItem(forgetKey) || '[]'));
+
+  const tableBody = document.getElementById("tableBody");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+
+  function renderTable() {
+    tableBody.innerHTML = "";
+    const start = (currentPage - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    const paginatedItems = data.slice(start, end);
+
+    paginatedItems.forEach((item, index) => {
+      const row = document.createElement("tr");
+      row.setAttribute("draggable", true);
+      row.setAttribute("data-index", start + index);
+
+      row.innerHTML = `
+        <td class="drag-handle">⠿</td>
+        <td>${start + index + 1}</td>
+        <td>${item.word}</td>
+        <td>${item.hindi}</td>
+        <td>${item.meaning}</td>
+        <td>${item.example}</td>
+        <td class="checkbox-cell">
+          <input type="checkbox" data-word="${item.word}" ${forgetSet.has(item.word) ? 'checked' : ''}/>
+        </td>
+      `;
+      tableBody.appendChild(row);
+    });
+
+    addCheckboxListeners();
+    addDragListeners();
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = end >= data.length;
+  }
+
+  function addCheckboxListeners() {
+    const checkboxes = tableBody.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+      cb.addEventListener('change', () => {
+        const word = cb.getAttribute('data-word');
+        if (cb.checked) {
+          forgetSet.add(word);
+        } else {
+          forgetSet.delete(word);
+        }
+        localStorage.setItem(forgetKey, JSON.stringify(Array.from(forgetSet)));
+      });
+    });
+  }
+
+  function addDragListeners() {
+    let draggingRow;
+
+    tableBody.querySelectorAll("tr").forEach(row => {
+      row.addEventListener("dragstart", e => {
+        draggingRow = row;
+        e.dataTransfer.effectAllowed = "move";
+      });
+
+      row.addEventListener("dragover", e => {
+        e.preventDefault();
+        row.style.borderTop = "2px solid #4a4e69";
+      });
+
+      row.addEventListener("dragleave", () => {
+        row.style.borderTop = "";
+      });
+
+      row.addEventListener("drop", () => {
+        row.style.borderTop = "";
+        const fromIndex = +draggingRow.dataset.index;
+        const toIndex = +row.dataset.index;
+
+        const item = data.splice(fromIndex, 1)[0];
+        data.splice(toIndex, 0, item);
+
+        renderTable();
+      });
+    });
+  }
+
+  prevBtn.addEventListener("click", () => {
+    if (currentPage > 1) {
+      currentPage--;
+      renderTable();
+    }
+  });
+
+  nextBtn.addEventListener("click", () => {
+    if ((currentPage * rowsPerPage) < data.length) {
+      currentPage++;
+      renderTable();
+    }
+  });
+
+  renderTable(); // Initial render
+</script>
+
+</body>
+</html>
