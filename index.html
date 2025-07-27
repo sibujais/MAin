@@ -94,30 +94,38 @@
 
 <h1>📚 Vocabulary Explorer</h1>
 
-<div class="table-container">
-  <table id="vocabTable">
-    <thead>
-      <tr>
-        <th>🔀</th>
-        <th>#</th>
-        <th>Word</th>
-        <th>Hindi Meaning</th>
-        <th>English Meaning</th>
-        <th>Example</th>
-        <th>🧠 Forget?</th>
-      </tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-  </table>
-</div>
+    <div class="controls">
+      <input type="text" id="searchInput" placeholder="🔍 Search..." />
+      <label class="button-group">
+        📥 Import JSON
+        <input type="file" id="importInput" accept=".json" />
+      </label>
+      <button onclick="exportData()">📤 Export JSON</button>
+      <label>
+        <input type="checkbox" id="showForgottenOnly" /> 🧠 Show forgotten only
+      </label>
+    </div>
 
-<div class="pagination">
-  <button id="prevBtn">⏮ Prev</button>
-  <button id="nextBtn">Next ⏭</button>
-</div>
+    <div class="table-container">
+      <table id="vocabTable">
+        <thead>
+          <tr>
+            <th>🔀</th>
+            <th>#</th>
+            <th>Word</th>
+            <th>Hindi Meaning</th>
+            <th>English Meaning</th>
+            <th>Example</th>
+            <th>🧠 Forget?</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
 
+    <div class="pagination" id="paginationControls"></div>
 <script>
-  const data = [
+  let data = [
     { word: "Apparatus", hindi: "उपकरण", meaning: "A set of tools", example: "The lab has modern apparatus." },
     { word: "Ethics", hindi: "नैतिकता", meaning: "Moral principles", example: "Ethics guide our actions." },
     { word: "Egress", hindi: "निकास", meaning: "Exit or way out", example: "Use the rear door for egress." },
@@ -2164,26 +2172,55 @@
   
 
   let currentPage = 1;
-  const rowsPerPage = 15;
-  const forgetKey = 'forgottenWords';
-  const forgetSet = new Set(JSON.parse(localStorage.getItem(forgetKey) || '[]'));
+      const rowsPerPage = 15;
+      const forgetKey = "forgottenWords";
+      const forgetSet = new Set(
+        JSON.parse(localStorage.getItem(forgetKey) || "[]")
+      );
 
-  const tableBody = document.getElementById("tableBody");
-  const prevBtn = document.getElementById("prevBtn");
-  const nextBtn = document.getElementById("nextBtn");
+      const tableBody = document.getElementById("tableBody");
+      const paginationControls = document.getElementById("paginationControls");
+      const searchInput = document.getElementById("searchInput");
+      const importInput = document.getElementById("importInput");
+      const showForgottenOnly = document.getElementById("showForgottenOnly");
 
-  function renderTable() {
-    tableBody.innerHTML = "";
-    const start = (currentPage - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    const paginatedItems = data.slice(start, end);
+      function getFilteredData() {
+        const keyword = searchInput.value.trim().toLowerCase();
+        let result = [...data];
 
-    paginatedItems.forEach((item, index) => {
-      const row = document.createElement("tr");
-      row.setAttribute("draggable", true);
-      row.setAttribute("data-index", start + index);
+        if (keyword) {
+          result = result.filter(
+            (item) =>
+              item.word.toLowerCase().includes(keyword) ||
+              item.hindi.toLowerCase().includes(keyword) ||
+              item.meaning.toLowerCase().includes(keyword) ||
+              item.example.toLowerCase().includes(keyword)
+          );
+        }
 
-      row.innerHTML = `
+        if (showForgottenOnly.checked) {
+          result = result.filter((item) => forgetSet.has(item.word));
+        }
+
+        return result;
+      }
+
+      function renderTable() {
+        tableBody.innerHTML = "";
+        const filteredData = getFilteredData();
+        const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+
+        if (currentPage > totalPages) currentPage = totalPages || 1;
+
+        const start = (currentPage - 1) * rowsPerPage;
+        const paginatedItems = filteredData.slice(start, start + rowsPerPage);
+
+        paginatedItems.forEach((item, index) => {
+          const row = document.createElement("tr");
+          row.setAttribute("draggable", true);
+          row.setAttribute("data-index", data.indexOf(item));
+
+          row.innerHTML = `
         <td class="drag-handle">⠿</td>
         <td>${start + index + 1}</td>
         <td>${item.word}</td>
@@ -2191,80 +2228,122 @@
         <td>${item.meaning}</td>
         <td>${item.example}</td>
         <td class="checkbox-cell">
-          <input type="checkbox" data-word="${item.word}" ${forgetSet.has(item.word) ? 'checked' : ''}/>
+          <input type="checkbox" data-word="${item.word}" ${
+            forgetSet.has(item.word) ? "checked" : ""
+          }/>
         </td>
       `;
-      tableBody.appendChild(row);
-    });
+          tableBody.appendChild(row);
+        });
 
-    addCheckboxListeners();
-    addDragListeners();
-    prevBtn.disabled = currentPage === 1;
-    nextBtn.disabled = end >= data.length;
-  }
+        renderPagination(totalPages);
+        addCheckboxListeners();
+        addDragListeners();
+      }
 
-  function addCheckboxListeners() {
-    const checkboxes = tableBody.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(cb => {
-      cb.addEventListener('change', () => {
-        const word = cb.getAttribute('data-word');
-        if (cb.checked) {
-          forgetSet.add(word);
-        } else {
-          forgetSet.delete(word);
+      function renderPagination(totalPages) {
+        paginationControls.innerHTML = "";
+
+        for (let i = 1; i <= totalPages; i++) {
+          const btn = document.createElement("button");
+          btn.textContent = i;
+          if (i === currentPage) btn.classList.add("active");
+          btn.onclick = () => {
+            currentPage = i;
+            renderTable();
+          };
+          paginationControls.appendChild(btn);
         }
-        localStorage.setItem(forgetKey, JSON.stringify(Array.from(forgetSet)));
+      }
+
+      function addCheckboxListeners() {
+        tableBody.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+          cb.addEventListener("change", () => {
+            const word = cb.getAttribute("data-word");
+            if (cb.checked) {
+              forgetSet.add(word);
+            } else {
+              forgetSet.delete(word);
+            }
+            localStorage.setItem(
+              forgetKey,
+              JSON.stringify(Array.from(forgetSet))
+            );
+          });
+        });
+      }
+
+      function addDragListeners() {
+        let draggingRow;
+
+        tableBody.querySelectorAll("tr").forEach((row) => {
+          row.addEventListener("dragstart", (e) => {
+            draggingRow = row;
+            e.dataTransfer.effectAllowed = "move";
+          });
+
+          row.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            row.style.borderTop = "2px solid #4a4e69";
+          });
+
+          row.addEventListener("dragleave", () => {
+            row.style.borderTop = "";
+          });
+
+          row.addEventListener("drop", () => {
+            row.style.borderTop = "";
+            const fromIndex = +draggingRow.dataset.index;
+            const toIndex = +row.dataset.index;
+            const item = data.splice(fromIndex, 1)[0];
+            data.splice(toIndex, 0, item);
+            renderTable();
+          });
+        });
+      }
+
+      function exportData() {
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: "application/json",
+        });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "vocabulary.json";
+        link.click();
+      }
+
+      importInput.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const imported = JSON.parse(e.target.result);
+            if (Array.isArray(imported)) {
+              data = imported;
+              currentPage = 1;
+              renderTable();
+            } else {
+              alert("Invalid file format.");
+            }
+          } catch {
+            alert("Failed to parse JSON.");
+          }
+        };
+        reader.readAsText(file);
       });
-    });
-  }
 
-  function addDragListeners() {
-    let draggingRow;
-
-    tableBody.querySelectorAll("tr").forEach(row => {
-      row.addEventListener("dragstart", e => {
-        draggingRow = row;
-        e.dataTransfer.effectAllowed = "move";
-      });
-
-      row.addEventListener("dragover", e => {
-        e.preventDefault();
-        row.style.borderTop = "2px solid #4a4e69";
-      });
-
-      row.addEventListener("dragleave", () => {
-        row.style.borderTop = "";
-      });
-
-      row.addEventListener("drop", () => {
-        row.style.borderTop = "";
-        const fromIndex = +draggingRow.dataset.index;
-        const toIndex = +row.dataset.index;
-
-        const item = data.splice(fromIndex, 1)[0];
-        data.splice(toIndex, 0, item);
-
+      searchInput.addEventListener("input", () => {
+        currentPage = 1;
         renderTable();
       });
-    });
-  }
 
-  prevBtn.addEventListener("click", () => {
-    if (currentPage > 1) {
-      currentPage--;
+      showForgottenOnly.addEventListener("change", () => {
+        currentPage = 1;
+        renderTable();
+      });
+
       renderTable();
-    }
-  });
-
-  nextBtn.addEventListener("click", () => {
-    if ((currentPage * rowsPerPage) < data.length) {
-      currentPage++;
-      renderTable();
-    }
-  });
-
-  renderTable(); // Initial render
-</script>
-
-</body>
+    </script>
+  </body>
 </html>
